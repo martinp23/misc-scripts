@@ -1,0 +1,175 @@
+global foundList
+set foundList to {}
+
+my process_docx(choose file with prompt "ChemBot - choose your docx file. MAKE SURE IT IS CLOSED IN WORD!")
+
+my process_folder(choose folder with prompt "ChemBot - Choose a Folder to Make PNGs from CDX")
+display dialog ("Done")
+
+on process_docx(docx_file)
+	display dialog (POSIX path of docx_file)
+	set p1 to POSIX path of docx_file
+	set p2 to p1 & ".withNumbers.docx"
+	set p1 to quoted form of p1
+	set p2 to quoted form of p2
+	do shell script "cp " & p1 & " " & p2
+	set docx_file to (docx_file as text) & ".withNumbers.docx"
+	tell application "Microsoft Word"
+		activate
+		open file docx_file
+		
+		set selection end of selection to 0
+		set findRange to find object of selection
+		
+		clear formatting findRange -- clear any previous formatting used in a find operation
+		set forward of findRange to true -- find forward
+		set content of findRange to "TMP[!$]{1,}"
+		set match case of findRange to true
+		set match wildcards of findRange to true
+		set continueFind to true
+		set foundListCrude to {}
+		repeat while continueFind
+			execute find findRange wrap find find stop with match forward
+			
+			if found in findRange is true then
+				set foundString to (get content of text object of selection)
+				
+				set end of foundListCrude to foundString
+			else
+				set continueFind to false
+			end if
+			
+		end repeat
+		
+	end tell
+	
+	repeat with x from 1 to count of items of foundListCrude
+		
+		
+		set n to item x of foundListCrude
+		if n is not in foundList then set end of foundList to n
+	end repeat
+	
+	repeat with x from 1 to count of items in foundList
+		set n to item x of foundList
+		tell application "Microsoft Word"
+			activate
+			set selection end of selection to 0
+			set replaceNum to find object of selection
+			clear formatting replaceNum -- clear any previous formatting used in a find operation
+			set forward of replaceNum to true -- find forward
+			set content of replaceNum to n & "$"
+			set match case of replaceNum to true
+			set match wildcards of replaceNum to false
+			set content of replacement of replaceNum to x
+			execute find replaceNum replace replace all
+			
+			-- now need to iterate over text boxes separately..
+			-- http://macscripter.net/viewtopic.php?id=28504
+			-- http://www.mactech.com/vba-transition-guide/index-028.html
+			tell active document
+				--alltextboxes variable stores a list of every text box in active document
+				set alltextboxes to (get every text box)
+				--each time the "repeat with" statement runs, Applescript sets onetextbox to the next text box in the list
+				repeat with onetextbox in alltextboxes
+					--Get the content of a text box
+					if has text of (text frame of onetextbox) then
+						set MyTextContent to text range of text frame of onetextbox
+						--if MyTextContent is not missing value then
+						
+						
+						set replaceNum1 to find object of MyTextContent
+						
+						clear formatting replaceNum1 -- clear any previous formatting used in a find operation
+						set forward of replaceNum1 to true -- find forward
+						set content of replaceNum1 to n & "$"
+						set match case of replaceNum1 to true
+						set match wildcards of replaceNum1 to false
+						set content of replacement of replaceNum1 to x
+						execute find replaceNum1 replace replace all
+					end if
+					--	end if
+				end repeat
+			end tell
+		end tell
+	end repeat
+	tell application "Microsoft Word"
+		activate
+		set theActiveDoc to the active document
+		
+		close theActiveDoc saving yes
+	end tell
+	
+end process_docx
+
+on process_folder(root_folder)
+	my create_images(root_folder)
+	
+	tell application "Finder"
+		set subfolders to every folder in root_folder
+		
+		repeat with i from 1 to number of items in subfolders
+			set subfolder to (item i of subfolders)
+			
+			my process_folder(subfolder)
+		end repeat
+	end tell
+	
+end process_folder
+
+on create_images(root_folder)
+	tell application "Finder"
+		set fileset to every file in root_folder
+		
+		repeat with i from 1 to number of items in fileset
+			set filename to item i of fileset as text
+			
+			if filename ends with ".cdxml" then
+				my cdx_to_png(filename)
+			end if
+		end repeat
+	end tell
+end create_images
+
+on cdx_to_png(filename)
+	set slug to text 1 thru -7 of filename as text
+	set cdx_path_old to slug & ".cdxml"
+	set cdx_path_bak to slug & ".cdxml.bak"
+	set png_path to slug & ".png"
+	
+	my create_alias(png_path)
+	my chemdraw(cdx_path_old, cdx_path_bak, png_path)
+end cdx_to_png
+
+-- Apparently, ChemDraw can only save to an alias, so we create one.
+on create_alias(target_path)
+	set open_target_file to open for access file target_path with write permission
+	close access open_target_file
+end create_alias
+
+on chemdraw(cdx_path_old, cdx_path_bak, png_path)
+	repeat with x from 1 to count of items in foundList
+		set n to item x of foundList
+		
+		set p1 to quoted form of POSIX path of cdx_path_old
+		set p2 to quoted form of POSIX path of cdx_path_bak
+		
+		
+		if x = 1 then
+			do shell script "sed -i '.bak' s/'" & n & "\\$'/" & x & "/g " & p1
+		else
+			do shell script "sed -i '' s/'" & n & "\\$'/" & x & "/g " & p1
+		end if
+	end repeat
+	tell application id "com.cambridgesoft.ChemDraw"
+		activate
+		open (cdx_path_old as alias)
+		save first document in (png_path as alias) as "PNG"
+		close first document
+	end tell
+	
+	delay 2
+		-- uncomment following line to restore original chemdraw file
+	--do shell script "cp " & p2 & " " & p1
+	
+end chemdraw
