@@ -1,6 +1,6 @@
 # misc-scripts
-Miscellaneous scripts
 
+## GetCpdIds
 
 The GetCpdIds script is applescript which does automatic compound numbering, as described here: https://web.archive.org/web/20131226191425/http://www.martinp23.com/blog/ 
 
@@ -52,3 +52,7 @@ Invaluable sources:
 1. [chemscheme](http://www.ctan.org/pkg/chemscheme) for LaTeX
 2. [CDX to PNG](http://www.macinchem.org/applescript/cdx2png.php) from [MacInChem](http://www.macinchem.org)
 3. Thanks to Chris from MacInChem for the [hint to avoid declaring](http://www.macinchem.org/blog/files/63ba35c12bf6dc127385a8ae0b2e2119-1219.php) a specific Chem(Bio)Draw version.
+
+## readChemstationDAD
+
+Matlab script to decode a chemstation binary file from a DAD into an array, so you can re-plot it. There are also ways to make ChemStation directly output ASCII data.
